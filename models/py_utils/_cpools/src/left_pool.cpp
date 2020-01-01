@@ -18,6 +18,7 @@ std::vector<at::Tensor> pool_forward(
 
     at::Tensor max_temp;
     for (int64_t ind = 1; ind < width; ++ind) {
+        // TODO: I can't understand why it's done here.
         input_temp  = input.select(3, width - ind - 1);
         output_temp = output.select(3, width - ind);
         max_temp    = output.select(3, width - ind - 1);

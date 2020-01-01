@@ -173,6 +173,7 @@ class kp(nn.Module):
         inter = self.pre(image)
         outs = []
 
+        # TODO: I can't understand why it has two branches.
         layers = zip(
             self.kps, self.cnvs,
             self.tl_cnvs, self.br_cnvs,
@@ -279,6 +280,7 @@ class AELoss(nn.Module):
 
         gt_tl_heat = targets[0]
         gt_br_heat = targets[1]
+        # TODO: gt_mask is not clear to understand where is from for me.
         gt_mask = targets[2]
         gt_tl_regr = targets[3]
         gt_br_regr = targets[4]
