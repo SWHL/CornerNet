@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+
 class Config:
     def __init__(self):
         self._configs = {}
@@ -175,5 +176,6 @@ class Config:
         for key in new:
             if key in self._configs:
                 self._configs[key] = new[key]
+
 
 system_configs = Config()

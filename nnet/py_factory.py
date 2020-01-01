@@ -8,20 +8,23 @@ from models.py_utils.data_parallel import DataParallel
 
 torch.manual_seed(317)
 
+
 class Network(nn.Module):
     def __init__(self, model, loss):
         super(Network, self).__init__()
 
         self.model = model
-        self.loss  = loss
+        self.loss = loss
 
     def forward(self, xs, ys, **kwargs):
         preds = self.model(*xs, **kwargs)
-        loss  = self.loss(preds, ys, **kwargs)
+        loss = self.loss(preds, ys, **kwargs)
         return loss
 
 # for model backward compatibility
 # previously model was wrapped by DataParallel module
+
+
 class DummyModule(nn.Module):
     def __init__(self, model):
         super(DummyModule, self).__init__()
@@ -30,16 +33,18 @@ class DummyModule(nn.Module):
     def forward(self, *xs, **kwargs):
         return self.module(*xs, **kwargs)
 
+
 class NetworkFactory(object):
     def __init__(self, db):
         super(NetworkFactory, self).__init__()
 
         module_file = "models.{}".format(system_configs.snapshot_name)
         print("module_file: {}".format(module_file))
+        # 动态导入对象models.CornerNet实例
         nnet_module = importlib.import_module(module_file)
 
-        self.model   = DummyModule(nnet_module.model(db))
-        self.loss    = nnet_module.loss
+        self.model = DummyModule(nnet_module.model(db))
+        self.loss = nnet_module.loss
         self.network = Network(self.model, self.loss)
         self.network = DataParallel(self.network, chunk_sizes=system_configs.chunk_sizes)
 
@@ -58,7 +63,7 @@ class NetworkFactory(object):
         elif system_configs.opt_algo == "sgd":
             self.optimizer = torch.optim.SGD(
                 filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=system_configs.learning_rate, 
+                lr=system_configs.learning_rate,
                 momentum=0.9, weight_decay=0.0001
             )
         else:

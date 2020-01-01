@@ -3,24 +3,31 @@ import torch.nn as nn
 
 from .utils import convolution, residual
 
+
 class MergeUp(nn.Module):
     def forward(self, up1, up2):
         return up1 + up2
 
+
 def make_merge_layer(dim):
     return MergeUp()
+
 
 def make_tl_layer(dim):
     return None
 
+
 def make_br_layer(dim):
     return None
+
 
 def make_pool_layer(dim):
     return nn.MaxPool2d(kernel_size=2, stride=2)
 
+
 def make_unpool_layer(dim):
     return nn.Upsample(scale_factor=2)
+
 
 def make_kp_layer(cnv_dim, curr_dim, out_dim):
     return nn.Sequential(
@@ -28,21 +35,25 @@ def make_kp_layer(cnv_dim, curr_dim, out_dim):
         nn.Conv2d(curr_dim, out_dim, (1, 1))
     )
 
+
 def make_inter_layer(dim):
     return residual(3, dim, dim)
+
 
 def make_cnv_layer(inp_dim, out_dim):
     return convolution(3, inp_dim, out_dim)
 
+
 def _gather_feat(feat, ind, mask=None):
-    dim  = feat.size(2)
-    ind  = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
+    dim = feat.size(2)
+    ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
     feat = feat.gather(1, ind)
     if mask is not None:
         mask = mask.unsqueeze(2).expand_as(feat)
         feat = feat[mask]
         feat = feat.view(-1, dim)
     return feat
+
 
 def _nms(heat, kernel=1):
     pad = (kernel - 1) // 2
@@ -51,11 +62,13 @@ def _nms(heat, kernel=1):
     keep = (hmax == heat).float()
     return heat * keep
 
+
 def _tranpose_and_gather_feat(feat, ind):
     feat = feat.permute(0, 2, 3, 1).contiguous()
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = _gather_feat(feat, ind)
     return feat
+
 
 def _topk(scores, K=20):
     batch, cat, height, width = scores.size()
@@ -65,12 +78,13 @@ def _topk(scores, K=20):
     topk_clses = (topk_inds / (height * width)).int()
 
     topk_inds = topk_inds % (height * width)
-    topk_ys   = (topk_inds / width).int().float()
-    topk_xs   = (topk_inds % width).int().float()
+    topk_ys = (topk_inds / width).int().float()
+    topk_xs = (topk_inds % width).int().float()
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
+
 def _decode(
-    tl_heat, br_heat, tl_tag, br_tag, tl_regr, br_regr, 
+    tl_heat, br_heat, tl_tag, br_tag, tl_regr, br_regr,
     K=100, kernel=1, ae_threshold=1, num_dets=1000
 ):
     batch, cat, height, width = tl_heat.size()
@@ -108,11 +122,11 @@ def _decode(
     tl_tag = tl_tag.view(batch, K, 1)
     br_tag = _tranpose_and_gather_feat(br_tag, br_inds)
     br_tag = br_tag.view(batch, 1, K)
-    dists  = torch.abs(tl_tag - br_tag)
+    dists = torch.abs(tl_tag - br_tag)
 
     tl_scores = tl_scores.view(batch, K, 1).expand(batch, K, K)
     br_scores = br_scores.view(batch, 1, K).expand(batch, K, K)
-    scores    = (tl_scores + br_scores) / 2
+    scores = (tl_scores + br_scores) / 2
 
     # reject boxes based on classes
     tl_clses = tl_clses.view(batch, K, 1).expand(batch, K, K)
@@ -123,12 +137,12 @@ def _decode(
     dist_inds = (dists > ae_threshold)
 
     # reject boxes based on widths and heights
-    width_inds  = (br_xs < tl_xs)
+    width_inds = (br_xs < tl_xs)
     height_inds = (br_ys < tl_ys)
 
-    scores[cls_inds]    = -1
-    scores[dist_inds]   = -1
-    scores[width_inds]  = -1
+    scores[cls_inds] = -1
+    scores[dist_inds] = -1
+    scores[width_inds] = -1
     scores[height_inds] = -1
 
     scores = scores.view(batch, -1)
@@ -138,8 +152,8 @@ def _decode(
     bboxes = bboxes.view(batch, -1, 4)
     bboxes = _gather_feat(bboxes, inds)
 
-    clses  = tl_clses.contiguous().view(batch, -1, 1)
-    clses  = _gather_feat(clses, inds).float()
+    clses = tl_clses.contiguous().view(batch, -1, 1)
+    clses = _gather_feat(clses, inds).float()
 
     tl_scores = tl_scores.contiguous().view(batch, -1, 1)
     tl_scores = _gather_feat(tl_scores, inds).float()
@@ -148,6 +162,7 @@ def _decode(
 
     detections = torch.cat([bboxes, scores, tl_scores, br_scores, clses], dim=2)
     return detections
+
 
 def _neg_loss(preds, gt):
     pos_inds = gt.eq(1)
@@ -163,7 +178,7 @@ def _neg_loss(preds, gt):
         pos_loss = torch.log(pos_pred) * torch.pow(1 - pos_pred, 2)
         neg_loss = torch.log(1 - neg_pred) * torch.pow(neg_pred, 2) * neg_weights
 
-        num_pos  = pos_inds.float().sum()
+        num_pos = pos_inds.float().sum()
         pos_loss = pos_loss.sum()
         neg_loss = neg_loss.sum()
 
@@ -173,12 +188,14 @@ def _neg_loss(preds, gt):
             loss = loss - (pos_loss + neg_loss) / num_pos
     return loss
 
+
 def _sigmoid(x):
-    x = torch.clamp(x.sigmoid_(), min=1e-4, max=1-1e-4)
+    x = torch.clamp(x.sigmoid_(), min=1e-4, max=1 - 1e-4)
     return x
 
+
 def _ae_loss(tag0, tag1, mask):
-    num  = mask.sum(dim=1, keepdim=True).float()
+    num = mask.sum(dim=1, keepdim=True).float()
     tag0 = tag0.squeeze()
     tag1 = tag1.squeeze()
 
@@ -192,7 +209,7 @@ def _ae_loss(tag0, tag1, mask):
 
     mask = mask.unsqueeze(1) + mask.unsqueeze(2)
     mask = mask.eq(2)
-    num  = num.unsqueeze(2)
+    num = num.unsqueeze(2)
     num2 = (num - 1) * num
     dist = tag_mean.unsqueeze(1) - tag_mean.unsqueeze(2)
     dist = 1 - torch.abs(dist)
@@ -203,13 +220,14 @@ def _ae_loss(tag0, tag1, mask):
     push = dist.sum()
     return pull, push
 
+
 def _regr_loss(regr, gt_regr, mask):
-    num  = mask.float().sum()
+    num = mask.float().sum()
     mask = mask.unsqueeze(2).expand_as(gt_regr)
 
-    regr    = regr[mask]
+    regr = regr[mask]
     gt_regr = gt_regr[mask]
-    
+
     regr_loss = nn.functional.smooth_l1_loss(regr, gt_regr, size_average=False)
     regr_loss = regr_loss / (num + 1e-4)
     return regr_loss

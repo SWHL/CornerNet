@@ -11,6 +11,7 @@ from .kp_utils import make_tl_layer, make_br_layer, make_kp_layer
 from .kp_utils import make_pool_layer, make_unpool_layer
 from .kp_utils import make_merge_layer, make_inter_layer, make_cnv_layer
 
+
 class kp_module(nn.Module):
     def __init__(
         self, n, dims, modules, layer=residual,
@@ -21,7 +22,7 @@ class kp_module(nn.Module):
     ):
         super(kp_module, self).__init__()
 
-        self.n   = n
+        self.n = n
 
         curr_mod = modules[0]
         next_mod = modules[1]
@@ -29,18 +30,18 @@ class kp_module(nn.Module):
         curr_dim = dims[0]
         next_dim = dims[1]
 
-        self.up1  = make_up_layer(
-            3, curr_dim, curr_dim, curr_mod, 
+        self.up1 = make_up_layer(
+            3, curr_dim, curr_dim, curr_mod,
             layer=layer, **kwargs
-        )  
+        )
         self.max1 = make_pool_layer(curr_dim)
         self.low1 = make_hg_layer(
             3, curr_dim, next_dim, curr_mod,
             layer=layer, **kwargs
         )
         self.low2 = kp_module(
-            n - 1, dims[1:], modules[1:], layer=layer, 
-            make_up_layer=make_up_layer, 
+            n - 1, dims[1:], modules[1:], layer=layer,
+            make_up_layer=make_up_layer,
             make_low_layer=make_low_layer,
             make_hg_layer=make_hg_layer,
             make_hg_layer_revr=make_hg_layer_revr,
@@ -49,7 +50,7 @@ class kp_module(nn.Module):
             make_merge_layer=make_merge_layer,
             **kwargs
         ) if self.n > 1 else \
-        make_low_layer(
+            make_low_layer(
             3, next_dim, next_dim, next_mod,
             layer=layer, **kwargs
         )
@@ -57,35 +58,36 @@ class kp_module(nn.Module):
             3, next_dim, curr_dim, curr_mod,
             layer=layer, **kwargs
         )
-        self.up2  = make_unpool_layer(curr_dim)
+        self.up2 = make_unpool_layer(curr_dim)
 
         self.merge = make_merge_layer(curr_dim)
 
     def forward(self, x):
-        up1  = self.up1(x)
+        up1 = self.up1(x)
         max1 = self.max1(x)
         low1 = self.low1(max1)
         low2 = self.low2(low1)
         low3 = self.low3(low2)
-        up2  = self.up2(low3)
+        up2 = self.up2(low3)
         return self.merge(up1, up2)
+
 
 class kp(nn.Module):
     def __init__(
-        self, n, nstack, dims, modules, out_dim, pre=None, cnv_dim=256, 
+        self, n, nstack, dims, modules, out_dim, pre=None, cnv_dim=256,
         make_tl_layer=make_tl_layer, make_br_layer=make_br_layer,
         make_cnv_layer=make_cnv_layer, make_heat_layer=make_kp_layer,
         make_tag_layer=make_kp_layer, make_regr_layer=make_kp_layer,
-        make_up_layer=make_layer, make_low_layer=make_layer, 
+        make_up_layer=make_layer, make_low_layer=make_layer,
         make_hg_layer=make_layer, make_hg_layer_revr=make_layer_revr,
         make_pool_layer=make_pool_layer, make_unpool_layer=make_unpool_layer,
-        make_merge_layer=make_merge_layer, make_inter_layer=make_inter_layer, 
+        make_merge_layer=make_merge_layer, make_inter_layer=make_inter_layer,
         kp_layer=residual
     ):
         super(kp, self).__init__()
 
-        self.nstack    = nstack
-        self._decode   = _decode
+        self.nstack = nstack
+        self._decode = _decode
 
         curr_dim = dims[0]
 
@@ -94,7 +96,7 @@ class kp(nn.Module):
             residual(3, 128, 256, stride=2)
         ) if pre is None else pre
 
-        self.kps  = nn.ModuleList([
+        self.kps = nn.ModuleList([
             kp_module(
                 n, dims, modules, layer=kp_layer,
                 make_up_layer=make_up_layer,
@@ -117,7 +119,7 @@ class kp(nn.Module):
             make_br_layer(cnv_dim) for _ in range(nstack)
         ])
 
-        ## keypoint heatmaps
+        # keypoint heatmaps
         self.tl_heats = nn.ModuleList([
             make_heat_layer(cnv_dim, curr_dim, out_dim) for _ in range(nstack)
         ])
@@ -125,11 +127,11 @@ class kp(nn.Module):
             make_heat_layer(cnv_dim, curr_dim, out_dim) for _ in range(nstack)
         ])
 
-        ## tags
-        self.tl_tags  = nn.ModuleList([
+        # tags
+        self.tl_tags = nn.ModuleList([
             make_tag_layer(cnv_dim, curr_dim, 1) for _ in range(nstack)
         ])
-        self.br_tags  = nn.ModuleList([
+        self.br_tags = nn.ModuleList([
             make_tag_layer(cnv_dim, curr_dim, 1) for _ in range(nstack)
         ])
 
@@ -147,7 +149,7 @@ class kp(nn.Module):
                 nn.BatchNorm2d(curr_dim)
             ) for _ in range(nstack - 1)
         ])
-        self.cnvs_   = nn.ModuleList([
+        self.cnvs_ = nn.ModuleList([
             nn.Sequential(
                 nn.Conv2d(cnv_dim, curr_dim, (1, 1), bias=False),
                 nn.BatchNorm2d(curr_dim)
@@ -164,12 +166,12 @@ class kp(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def _train(self, *xs):
-        image   = xs[0]
+        image = xs[0]
         tl_inds = xs[1]
         br_inds = xs[2]
 
         inter = self.pre(image)
-        outs  = []
+        outs = []
 
         layers = zip(
             self.kps, self.cnvs,
@@ -179,24 +181,24 @@ class kp(nn.Module):
             self.tl_regrs, self.br_regrs
         )
         for ind, layer in enumerate(layers):
-            kp_, cnv_          = layer[0:2]
-            tl_cnv_, br_cnv_   = layer[2:4]
+            kp_, cnv_ = layer[0:2]
+            tl_cnv_, br_cnv_ = layer[2:4]
             tl_heat_, br_heat_ = layer[4:6]
-            tl_tag_, br_tag_   = layer[6:8]
+            tl_tag_, br_tag_ = layer[6:8]
             tl_regr_, br_regr_ = layer[8:10]
 
-            kp  = kp_(inter)
+            kp = kp_(inter)
             cnv = cnv_(kp)
 
             tl_cnv = tl_cnv_(cnv)
             br_cnv = br_cnv_(cnv)
 
             tl_heat, br_heat = tl_heat_(tl_cnv), br_heat_(br_cnv)
-            tl_tag,  br_tag  = tl_tag_(tl_cnv),  br_tag_(br_cnv)
+            tl_tag, br_tag = tl_tag_(tl_cnv), br_tag_(br_cnv)
             tl_regr, br_regr = tl_regr_(tl_cnv), br_regr_(br_cnv)
 
-            tl_tag  = _tranpose_and_gather_feat(tl_tag, tl_inds)
-            br_tag  = _tranpose_and_gather_feat(br_tag, br_inds)
+            tl_tag = _tranpose_and_gather_feat(tl_tag, tl_inds)
+            br_tag = _tranpose_and_gather_feat(br_tag, br_inds)
             tl_regr = _tranpose_and_gather_feat(tl_regr, tl_inds)
             br_regr = _tranpose_and_gather_feat(br_regr, br_inds)
 
@@ -212,7 +214,7 @@ class kp(nn.Module):
         image = xs[0]
 
         inter = self.pre(image)
-        outs  = []
+        outs = []
 
         layers = zip(
             self.kps, self.cnvs,
@@ -222,13 +224,13 @@ class kp(nn.Module):
             self.tl_regrs, self.br_regrs
         )
         for ind, layer in enumerate(layers):
-            kp_, cnv_          = layer[0:2]
-            tl_cnv_, br_cnv_   = layer[2:4]
+            kp_, cnv_ = layer[0:2]
+            tl_cnv_, br_cnv_ = layer[2:4]
             tl_heat_, br_heat_ = layer[4:6]
-            tl_tag_, br_tag_   = layer[6:8]
+            tl_tag_, br_tag_ = layer[6:8]
             tl_regr_, br_regr_ = layer[8:10]
 
-            kp  = kp_(inter)
+            kp = kp_(inter)
             cnv = cnv_(kp)
 
             if ind == self.nstack - 1:
@@ -236,7 +238,7 @@ class kp(nn.Module):
                 br_cnv = br_cnv_(cnv)
 
                 tl_heat, br_heat = tl_heat_(tl_cnv), br_heat_(br_cnv)
-                tl_tag,  br_tag  = tl_tag_(tl_cnv),  br_tag_(br_cnv)
+                tl_tag, br_tag = tl_tag_(tl_cnv), br_tag_(br_cnv)
                 tl_regr, br_regr = tl_regr_(tl_cnv), br_regr_(br_cnv)
 
                 outs += [tl_heat, br_heat, tl_tag, br_tag, tl_regr, br_regr]
@@ -253,6 +255,7 @@ class kp(nn.Module):
             return self._train(*xs, **kwargs)
         return self._test(*xs, **kwargs)
 
+
 class AELoss(nn.Module):
     def __init__(self, pull_weight=1, push_weight=1, regr_weight=1, focal_loss=_neg_loss):
         super(AELoss, self).__init__()
@@ -260,23 +263,23 @@ class AELoss(nn.Module):
         self.pull_weight = pull_weight
         self.push_weight = push_weight
         self.regr_weight = regr_weight
-        self.focal_loss  = focal_loss
-        self.ae_loss     = _ae_loss
-        self.regr_loss   = _regr_loss
+        self.focal_loss = focal_loss
+        self.ae_loss = _ae_loss
+        self.regr_loss = _regr_loss
 
     def forward(self, outs, targets):
         stride = 6
 
         tl_heats = outs[0::stride]
         br_heats = outs[1::stride]
-        tl_tags  = outs[2::stride]
-        br_tags  = outs[3::stride]
+        tl_tags = outs[2::stride]
+        br_tags = outs[3::stride]
         tl_regrs = outs[4::stride]
         br_regrs = outs[5::stride]
 
         gt_tl_heat = targets[0]
         gt_br_heat = targets[1]
-        gt_mask    = targets[2]
+        gt_mask = targets[2]
         gt_tl_regr = targets[3]
         gt_br_regr = targets[4]
 

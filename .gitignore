@@ -1,7 +1,10 @@
 cache/
 results/
+.idea/
+temp/
 
 *.swp
 
 *.pyc
 *.o*
+
