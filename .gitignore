@@ -2,6 +2,7 @@ cache/
 results/
 .idea/
 temp/
+data/
 
 *.swp
 

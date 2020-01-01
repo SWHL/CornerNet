@@ -90,3 +90,10 @@ class model(kp):
 
 
 loss = AELoss(pull_weight=1e-1, push_weight=1e-1, focal_loss=_neg_loss)
+
+
+if __name__ == '__main__':
+    model = model(None)
+    print(model)
+
+

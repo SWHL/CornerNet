@@ -289,6 +289,7 @@ class AELoss(nn.Module):
         tl_heats = [_sigmoid(t) for t in tl_heats]
         br_heats = [_sigmoid(b) for b in br_heats]
 
+        # The Equation (1) in the paper.
         focal_loss += self.focal_loss(tl_heats, gt_tl_heat)
         focal_loss += self.focal_loss(br_heats, gt_br_heat)
 
@@ -303,6 +304,7 @@ class AELoss(nn.Module):
         pull_loss = self.pull_weight * pull_loss
         push_loss = self.push_weight * push_loss
 
+        # offset loss
         regr_loss = 0
         for tl_regr, br_regr in zip(tl_regrs, br_regrs):
             regr_loss += self.regr_loss(tl_regr, gt_tl_regr, gt_mask)

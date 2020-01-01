@@ -12,12 +12,13 @@ from config import system_configs
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
+
 class MSCOCO(DETECTION):
     def __init__(self, db_config, split):
         super(MSCOCO, self).__init__(db_config)
-        data_dir   = system_configs.data_dir
+        data_dir = system_configs.data_dir
         result_dir = system_configs.result_dir
-        cache_dir  = system_configs.cache_dir
+        cache_dir = system_configs.cache_dir
 
         self._split = split
         self._dataset = {
@@ -25,19 +26,19 @@ class MSCOCO(DETECTION):
             "minival": "minival2014",
             "testdev": "testdev2017"
         }[self._split]
-        
+
         self._coco_dir = os.path.join(data_dir, "coco")
 
-        self._label_dir  = os.path.join(self._coco_dir, "annotations")
+        self._label_dir = os.path.join(self._coco_dir, "annotations")
         self._label_file = os.path.join(self._label_dir, "instances_{}.json")
         self._label_file = self._label_file.format(self._dataset)
 
-        self._image_dir  = os.path.join(self._coco_dir, "images", self._dataset)
+        self._image_dir = os.path.join(self._coco_dir, "images", self._dataset)
         self._image_file = os.path.join(self._image_dir, "{}")
 
         self._data = "coco"
         self._mean = np.array([0.40789654, 0.44719302, 0.47026115], dtype=np.float32)
-        self._std  = np.array([0.28863828, 0.27408164, 0.27809835], dtype=np.float32)
+        self._std = np.array([0.28863828, 0.27408164, 0.27809835], dtype=np.float32)
         self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571], dtype=np.float32)
         self._eig_vec = np.array([
             [-0.58752847, -0.69563484, 0.41340352],
@@ -46,13 +47,13 @@ class MSCOCO(DETECTION):
         ], dtype=np.float32)
 
         self._cat_ids = [
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 
-            14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 
-            24, 25, 27, 28, 31, 32, 33, 34, 35, 36, 
-            37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 
-            48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 
-            58, 59, 60, 61, 62, 63, 64, 65, 67, 70, 
-            72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
+            14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 27, 28, 31, 32, 33, 34, 35, 36,
+            37, 38, 39, 40, 41, 42, 43, 44, 46, 47,
+            48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+            58, 59, 60, 61, 62, 63, 64, 65, 67, 70,
+            72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
             82, 84, 85, 86, 87, 88, 89, 90
         ]
         self._classes = {
@@ -66,7 +67,7 @@ class MSCOCO(DETECTION):
         self._load_data()
         self._db_inds = np.arange(len(self._image_ids))
 
-        self._load_coco_data() 
+        self._load_coco_data()
 
     def _load_data(self):
         print("loading from cache file: {}".format(self._cache_file))
@@ -91,33 +92,33 @@ class MSCOCO(DETECTION):
         }
 
         self._coco_categories = data["categories"]
-        self._coco_eval_ids   = eval_ids
+        self._coco_eval_ids = eval_ids
 
     def class_name(self, cid):
         cat_id = self._classes[cid]
-        cat    = self._coco.loadCats([cat_id])[0]
+        cat = self._coco.loadCats([cat_id])[0]
         return cat["name"]
 
     def _extract_data(self):
-        self._coco    = COCO(self._label_file)
+        self._coco = COCO(self._label_file)
         self._cat_ids = self._coco.getCatIds()
 
         coco_image_ids = self._coco.getImgIds()
 
         self._image_ids = [
-            self._coco.loadImgs(img_id)[0]["file_name"] 
+            self._coco.loadImgs(img_id)[0]["file_name"]
             for img_id in coco_image_ids
         ]
         self._detections = {}
         for ind, (coco_image_id, image_id) in enumerate(tqdm(zip(coco_image_ids, self._image_ids))):
-            image      = self._coco.loadImgs(coco_image_id)[0]
-            bboxes     = []
+            image = self._coco.loadImgs(coco_image_id)[0]
+            bboxes = []
             categories = []
 
             for cat_id in self._cat_ids:
                 annotation_ids = self._coco.getAnnIds(imgIds=image["id"], catIds=cat_id)
-                annotations    = self._coco.loadAnns(annotation_ids)
-                category       = self._coco_to_class_map[cat_id]
+                annotations = self._coco.loadAnns(annotation_ids)
+                category = self._coco_to_class_map[cat_id]
                 for annotation in annotations:
                     bbox = np.array(annotation["bbox"])
                     bbox[[2, 3]] += bbox[[0, 1]]
@@ -125,7 +126,7 @@ class MSCOCO(DETECTION):
 
                     categories.append(category)
 
-            bboxes     = np.array(bboxes, dtype=float)
+            bboxes = np.array(bboxes, dtype=float)
             categories = np.array(categories, dtype=float)
             if bboxes.size == 0 or categories.size == 0:
                 self._detections[image_id] = np.zeros((0, 5), dtype=np.float32)
@@ -152,7 +153,7 @@ class MSCOCO(DETECTION):
                     bbox[3] -= bbox[1]
 
                     score = bbox[4]
-                    bbox  = list(map(self._to_float, bbox[0:4]))
+                    bbox = list(map(self._to_float, bbox[0:4]))
 
                     detection = {
                         "image_id": coco_id,
@@ -171,7 +172,7 @@ class MSCOCO(DETECTION):
         coco = self._coco if gt_json is None else COCO(gt_json)
 
         eval_ids = [self._coco_eval_ids[image_id] for image_id in image_ids]
-        cat_ids  = [self._classes[cls_id] for cls_id in cls_ids]
+        cat_ids = [self._classes[cls_id] for cls_id in cls_ids]
 
         coco_dets = coco.loadRes(result_json)
         coco_eval = COCOeval(coco, coco_dets, "bbox")
